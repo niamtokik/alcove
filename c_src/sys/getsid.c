@@ -15,36 +15,30 @@
 #include "alcove.h"
 #include "alcove_call.h"
 
-#ifdef __linux__
-#include <linux/unistd.h>
-#include <elf.h>
-#include <linux/audit.h>
-#include "alcove_syscall.h"
-#endif
-
 /*
- * syscalls
- *
+ * getsid(2)
  */
     ssize_t
-alcove_sys_syscall_define(alcove_state_t *ap, const char *arg, size_t len,
+alcove_sys_getsid(alcove_state_t *ap, const char *arg, size_t len,
         char *reply, size_t rlen)
 {
-#ifdef __linux__
     int index = 0;
     int rindex = 0;
 
-    char name[MAXATOMLEN] = {0};
+    pid_t pid = 0;
+    pid_t rv = 0;
 
-    /* name */
-    if (alcove_decode_atom(arg, len, &index, name) < 0)
+    /* pid */
+    if (alcove_decode_int(arg, len, &index, &pid) < 0)
         return -1;
 
-    ALCOVE_ERR(alcove_encode_version(reply, rlen, &rindex));
-    ALCOVE_ERR(alcove_encode_define(reply, rlen, &rindex,
-                name, alcove_syscall_constants));
+    rv = getsid(pid);
+
+    if (rv < 0)
+        return alcove_mk_errno(reply, rlen, errno);
+
+    ALCOVE_OK(reply, &rindex,
+        alcove_encode_long(reply, rlen, &rindex, rv));
+
     return rindex;
-#else
-    return alcove_mk_atom(reply, rlen, "false");
-#endif
 }

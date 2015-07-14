@@ -15,57 +15,26 @@
 #include "alcove.h"
 #include "alcove_call.h"
 
-#ifndef HOST_NAME_MAX
-#define HOST_NAME_MAX MAXHOSTNAMELEN
-#endif
+extern char **environ;
 
 /*
- * gethostname(2)
+ * clearenv(3)
  *
  */
     ssize_t
-alcove_sys_gethostname(alcove_state_t *ap, const char *arg, size_t len,
+alcove_sys_clearenv(alcove_state_t *ap, const char *arg, size_t len,
         char *reply, size_t rlen)
 {
-    int rindex = 0;
-
-    char name[HOST_NAME_MAX] = {0};
+#ifdef __linux__
     int rv = 0;
 
-    rv = gethostname(name, HOST_NAME_MAX-1);
-
-    if (rv < 0)
-       return alcove_mk_errno(reply, rlen, errno);
-
-    ALCOVE_OK(reply, &rindex,
-        alcove_encode_binary(reply, rlen, &rindex, name, strlen(name)));
-
-    return rindex;
-}
-
-/*
- * sethostname(2)
- *
- */
-    ssize_t
-alcove_sys_sethostname(alcove_state_t *ap, const char *arg, size_t len,
-        char *reply, size_t rlen)
-{
-    int index = 0;
-
-    char name[HOST_NAME_MAX] = {0};
-    size_t nlen = sizeof(name)-1;
-    int rv = 0;
-    int errnum = 0;
-
-    /* hostname */
-    if (alcove_decode_iolist(arg, len, &index, name, &nlen) < 0 ||
-            nlen == 0)
-        return -1;
-
-    rv = sethostname(name, strlen(name));
+    rv = clearenv();
 
     return (rv < 0)
-        ? alcove_mk_errno(reply, rlen, errnum)
+        ? alcove_mk_errno(reply, rlen, errno)
         : alcove_mk_atom(reply, rlen, "ok");
+#else
+    environ = NULL;
+    return alcove_mk_atom(reply, rlen, "ok");
+#endif
 }
