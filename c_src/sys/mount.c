@@ -14,9 +14,8 @@
  */
 #include "alcove.h"
 #include "alcove_call.h"
-
 #include <sys/mount.h>
-#include "alcove_mount.h"
+#include "alcove_mount_constants.h"
 
 #define MAYBE_NULL(_len, _buf) ((_len) == 0 ? NULL : (_buf))
 
@@ -59,9 +58,15 @@ alcove_sys_mount(alcove_state_t *ap, const char *arg, size_t len,
         return -1;
 
     /* mountflags */
-    if (alcove_decode_define_list(arg, len, &index, (int *)&mountflags,
-                alcove_mount_constants) < 0)
-        return -1;
+    switch (alcove_decode_define_list(arg, len, &index, (int *)&mountflags,
+                alcove_mount_constants)) {
+        case 0:
+            break;
+        case 1:
+            return alcove_mk_error(reply, rlen, "unsupported");
+        default:
+            return -1;
+    }
 
     /* data */
     if (alcove_decode_iolist(arg, len, &index, data, &dlen) < 0)
@@ -115,58 +120,4 @@ alcove_sys_mount(alcove_state_t *ap, const char *arg, size_t len,
     return (rv < 0)
         ? alcove_mk_errno(reply, rlen, errno)
         : alcove_mk_atom(reply, rlen, "ok");
-}
-
-/*
- * umount(2)
- *
- */
-    ssize_t
-alcove_sys_umount(alcove_state_t *ap, const char *arg, size_t len,
-        char *reply, size_t rlen)
-{
-    int index = 0;
-
-    char source[PATH_MAX] = {0};
-    size_t slen = sizeof(source)-1;
-
-    int rv = 0;
-
-    /* source */
-    if (alcove_decode_iolist(arg, len, &index, source, &slen) < 0 ||
-            slen == 0)
-        return -1;
-
-#if defined(__linux__) || defined(__sunos__)
-    rv = umount(source);
-#else
-    rv = unmount(source, 0);
-#endif
-
-    return (rv < 0)
-        ? alcove_mk_errno(reply, rlen, errno)
-        : alcove_mk_atom(reply, rlen, "ok");
-}
-
-/*
- * mount constants
- *
- */
-    ssize_t
-alcove_sys_mount_define(alcove_state_t *ap, const char *arg, size_t len,
-        char *reply, size_t rlen)
-{
-    int index = 0;
-    int rindex = 0;
-
-    char name[MAXATOMLEN] = {0};
-
-    /* flag */
-    if (alcove_decode_atom(arg, len, &index, name) < 0)
-        return -1;
-
-    ALCOVE_ERR(alcove_encode_version(reply, rlen, &rindex));
-    ALCOVE_ERR(alcove_encode_define(reply, rlen, &rindex,
-                name, alcove_mount_constants));
-    return rindex;
 }

@@ -30,11 +30,15 @@ alcove_sys_unshare(alcove_state_t *ap, const char *arg, size_t len,
     int flags = 0;
 
     /* flags */
-    if (alcove_decode_define_list(arg, len, &index, &flags,
-                alcove_clone_constants) < 0)
-        return -1;
-
-    (void)fprintf(stderr, "flags=%d\n", flags);
+    switch (alcove_decode_define_list(arg, len, &index, &flags,
+                alcove_clone_constants)) {
+        case 0:
+            break;
+        case 1:
+            return alcove_mk_error(reply, rlen, "unsupported");
+        default:
+            return -1;
+    }
 
     return (unshare(flags) < 0)
         ? alcove_mk_errno(reply, rlen, errno)

@@ -14,46 +14,21 @@
  */
 #include "alcove.h"
 #include "alcove_call.h"
-#include "alcove_prio_constants.h"
 
 /*
- * setpriority(2)
+ * exit(3)
+ *
  */
     ssize_t
-alcove_sys_setpriority(alcove_state_t *ap, const char *arg, size_t len,
+alcove_sys_exit(alcove_state_t *ap, const char *arg, size_t len,
         char *reply, size_t rlen)
 {
     int index = 0;
+    int status = 0;
 
-    int which = 0;
-    int who = 0;
-    int prio = 0;
-
-    switch (alcove_decode_define(arg, len, &index, &which,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
-
-    switch (alcove_decode_define(arg, len, &index, &who,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
-
-    if (alcove_decode_int(arg, len, &index, &prio) < 0)
+    /* status */
+    if (alcove_decode_int(arg, len, &index, &status) < 0)
         return -1;
 
-    if (setpriority(which, who, prio) < 0)
-        return alcove_mk_errno(reply, rlen, errno);
-
-    return alcove_mk_atom(reply, rlen, "ok");
+    exit(status);
 }

@@ -14,50 +14,28 @@
  */
 #include "alcove.h"
 #include "alcove_call.h"
-#include "alcove_prio_constants.h"
+#include <sys/mount.h>
+#include "alcove_mount_constants.h"
 
 /*
- * getpriority(2)
+ * mount constants
+ *
  */
     ssize_t
-alcove_sys_getpriority(alcove_state_t *ap, const char *arg, size_t len,
+alcove_sys_mount_define(alcove_state_t *ap, const char *arg, size_t len,
         char *reply, size_t rlen)
 {
     int index = 0;
     int rindex = 0;
 
-    int which = 0;
-    int who = 0;
-    int prio = 0;
+    char name[MAXATOMLEN] = {0};
 
-    switch (alcove_decode_define(arg, len, &index, &which,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
+    /* flag */
+    if (alcove_decode_atom(arg, len, &index, name) < 0)
+        return -1;
 
-    switch (alcove_decode_define(arg, len, &index, &who,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
-
-    errno = 0;
-    prio = getpriority(which, who);
-
-    if (errno != 0)
-        return alcove_mk_errno(reply, rlen, errno);
-
-    ALCOVE_OK(reply, &rindex,
-        alcove_encode_long(reply, rlen, &rindex, prio));
-
+    ALCOVE_ERR(alcove_encode_version(reply, rlen, &rindex));
+    ALCOVE_ERR(alcove_encode_define(reply, rlen, &rindex,
+                name, alcove_mount_constants));
     return rindex;
 }

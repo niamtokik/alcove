@@ -14,24 +14,26 @@
  */
 #include "alcove.h"
 #include "alcove_call.h"
-#include "alcove_prio_constants.h"
+#include "alcove_rlimit_constants.h"
 
 /*
- * getpriority(2)
+ * getrlimit(2)
+ *
  */
     ssize_t
-alcove_sys_getpriority(alcove_state_t *ap, const char *arg, size_t len,
+alcove_sys_getrlimit(alcove_state_t *ap, const char *arg, size_t len,
         char *reply, size_t rlen)
 {
     int index = 0;
     int rindex = 0;
 
-    int which = 0;
-    int who = 0;
-    int prio = 0;
+    int resource = 0;
+    struct rlimit rlim = {0};
+    int rv = 0;
 
-    switch (alcove_decode_define(arg, len, &index, &which,
-                alcove_prio_constants)) {
+    /* resource */
+    switch (alcove_decode_define(arg, len, &index, &resource,
+                alcove_rlimit_constants)) {
         case 0:
             break;
         case 1:
@@ -40,24 +42,18 @@ alcove_sys_getpriority(alcove_state_t *ap, const char *arg, size_t len,
             return -1;
     }
 
-    switch (alcove_decode_define(arg, len, &index, &who,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
+    rv = getrlimit(resource, &rlim);
 
-    errno = 0;
-    prio = getpriority(which, who);
+    if (rv < 0)
+        return  alcove_mk_errno(reply, rlen, errno);
 
-    if (errno != 0)
-        return alcove_mk_errno(reply, rlen, errno);
-
-    ALCOVE_OK(reply, &rindex,
-        alcove_encode_long(reply, rlen, &rindex, prio));
+    ALCOVE_ERR(alcove_encode_version(reply, rlen, &rindex));
+    ALCOVE_ERR(alcove_encode_tuple_header(reply, rlen, &rindex, 2));
+    ALCOVE_ERR(alcove_encode_atom(reply, rlen, &rindex, "ok"));
+    ALCOVE_ERR(alcove_encode_tuple_header(reply, rlen, &rindex, 3));
+    ALCOVE_ERR(alcove_encode_atom(reply, rlen, &rindex, "alcove_rlimit"));
+    ALCOVE_ERR(alcove_encode_ulonglong(reply, rlen, &rindex, rlim.rlim_cur));
+    ALCOVE_ERR(alcove_encode_ulonglong(reply, rlen, &rindex, rlim.rlim_max));
 
     return rindex;
 }

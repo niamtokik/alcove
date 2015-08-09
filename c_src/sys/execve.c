@@ -14,46 +14,42 @@
  */
 #include "alcove.h"
 #include "alcove_call.h"
-#include "alcove_prio_constants.h"
 
 /*
- * setpriority(2)
+ * execve(2)
+ *
  */
     ssize_t
-alcove_sys_setpriority(alcove_state_t *ap, const char *arg, size_t len,
+alcove_sys_execve(alcove_state_t *ap, const char *arg, size_t len,
         char *reply, size_t rlen)
 {
     int index = 0;
 
-    int which = 0;
-    int who = 0;
-    int prio = 0;
+    char filename[PATH_MAX] = {0};
+    size_t flen = sizeof(filename)-1;
+    char **argv = NULL;
+    char **envp = NULL;
+    int errnum = 0;
 
-    switch (alcove_decode_define(arg, len, &index, &which,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
-
-    switch (alcove_decode_define(arg, len, &index, &who,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
-
-    if (alcove_decode_int(arg, len, &index, &prio) < 0)
+    /* filename */
+    if (alcove_decode_iolist(arg, len, &index, filename, &flen) ||
+            flen == 0)
         return -1;
 
-    if (setpriority(which, who, prio) < 0)
-        return alcove_mk_errno(reply, rlen, errno);
+    /* argv */
+    if (alcove_decode_list_to_argv(arg, len, &index, &argv) < 0)
+        return -1;
 
-    return alcove_mk_atom(reply, rlen, "ok");
+    /* envp */
+    if (alcove_decode_list_to_argv(arg, len, &index, &envp) < 0)
+        return -1;
+
+    execve(filename, argv, envp);
+
+    errnum = errno;
+
+    alcove_free_argv(argv);
+    alcove_free_argv(envp);
+
+    return alcove_mk_errno(reply, rlen, errnum);
 }

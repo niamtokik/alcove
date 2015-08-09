@@ -38,11 +38,8 @@ alcove_sys_sigaction(alcove_state_t *ap, const char *arg, size_t len,
                 alcove_signal_constants)) {
         case 0:
             break;
-
         case 1:
-            return alcove_mk_errno(reply, rlen, EINVAL);
-
-        case -1:
+            return alcove_mk_error(reply, rlen, "unsupported");
         default:
             return -1;
     }
@@ -51,13 +48,13 @@ alcove_sys_sigaction(alcove_state_t *ap, const char *arg, size_t len,
     if (alcove_decode_atom(arg, len, &index, handler) < 0)
         return -1;
 
-    if (!strcmp(handler, "sig_dfl")) {
+    if (strcmp(handler, "sig_dfl") == 0) {
         act.sa_handler = SIG_DFL;
     }
-    else if (!strcmp(handler, "sig_ign")) {
+    else if (strcmp(handler, "sig_ign") == 0) {
         act.sa_handler = SIG_IGN;
     }
-    else if (!strcmp(handler, "sig_catch")) {
+    else if (strcmp(handler, "sig_catch") == 0) {
         act.sa_handler = sighandler;
     }
     else {

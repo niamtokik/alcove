@@ -46,15 +46,21 @@ alcove_sys_clone(alcove_state_t *ap, const char *arg, size_t len,
         return alcove_mk_errno(reply, rlen, EAGAIN);
 
     /* flags */
-    if (alcove_decode_define_list(arg, len, &index, &flags,
-                alcove_clone_constants) < 0)
-        return -1;
+    switch (alcove_decode_define_list(arg, len, &index, &flags,
+                alcove_clone_constants)) {
+        case 0:
+            break;
+        case 1:
+            return alcove_mk_error(reply, rlen, "unsupported");
+        default:
+            return -1;
+    }
 
     if (getrlimit(RLIMIT_STACK, &stack_size) < 0)
         return alcove_mk_errno(reply, rlen, errno);
 
     child_stack = calloc(stack_size.rlim_cur, 1);
-    if (!child_stack)
+    if (child_stack == NULL)
         return alcove_mk_errno(reply, rlen, errno);
 
     if (alcove_stdio(&fd) < 0)

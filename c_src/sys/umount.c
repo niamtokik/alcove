@@ -14,46 +14,35 @@
  */
 #include "alcove.h"
 #include "alcove_call.h"
-#include "alcove_prio_constants.h"
+#include <sys/mount.h>
 
 /*
- * setpriority(2)
+ * umount(2)
+ *
  */
     ssize_t
-alcove_sys_setpriority(alcove_state_t *ap, const char *arg, size_t len,
+alcove_sys_umount(alcove_state_t *ap, const char *arg, size_t len,
         char *reply, size_t rlen)
 {
     int index = 0;
 
-    int which = 0;
-    int who = 0;
-    int prio = 0;
+    char source[PATH_MAX] = {0};
+    size_t slen = sizeof(source)-1;
 
-    switch (alcove_decode_define(arg, len, &index, &which,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
+    int rv = 0;
 
-    switch (alcove_decode_define(arg, len, &index, &who,
-                alcove_prio_constants)) {
-        case 0:
-            break;
-        case 1:
-            return alcove_mk_error(reply, rlen, "unsupported");
-        default:
-            return -1;
-    }
-
-    if (alcove_decode_int(arg, len, &index, &prio) < 0)
+    /* source */
+    if (alcove_decode_iolist(arg, len, &index, source, &slen) < 0 ||
+            slen == 0)
         return -1;
 
-    if (setpriority(which, who, prio) < 0)
-        return alcove_mk_errno(reply, rlen, errno);
+#if defined(__linux__) || defined(__sunos__)
+    rv = umount(source);
+#else
+    rv = unmount(source, 0);
+#endif
 
-    return alcove_mk_atom(reply, rlen, "ok");
+    return (rv < 0)
+        ? alcove_mk_errno(reply, rlen, errno)
+        : alcove_mk_atom(reply, rlen, "ok");
 }
